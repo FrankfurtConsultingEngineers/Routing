@@ -1,4 +1,4 @@
-#!C:/Users/fabia/anaconda3/envs/quantum/python.exe
+#!C:/PATH_TO_YOUR_QUANTUM_ENVIRONMENT/python.exe
 print('Content-Type: application/json\n\n')
 
 
@@ -173,7 +173,7 @@ from dwave_qbsolv import QBSolv
 result_dwave = QBSolv().sample_qubo(Qubo)
 
 #####################################
-###### END DEXECUTION ON D WAVE #####
+###### END EXECUTION ON D WAVE #####
 #####################################
 
 
