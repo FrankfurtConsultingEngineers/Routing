@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+<head>
+  <title>Network</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <style type="text/css">
+    #mynetwork {
+      width: auto;
+      height: 600px;
+      border: 1px solid lightgray;
+    }
+  </style>
+</head>
+<body>
+<my-toolbar>
+    <button id="toggleAddNode">add Node</button>
+	<button id="toggleAddEdge">add Edge</button>
+	Edge costs:
+	<input id="edgeCosts" type="number" value="1" size="2">
+    <!--<button id="btnDelete">delete Selection</button>-->
+    <!-- other Vis manipulation buttons -->
+    <button id="togglePhysics">pause Physics</button>
+    <button id="QuantumRouting">Quantum routing</button>
+</my-toolbar>
+<div id="mynetwork"></div>
+<script type="text/javascript">
+document.getElementById("toggleAddNode").onclick = addNode;
+//document.getElementById("btnDelete").onclick = visDelete;
+document.getElementById("togglePhysics").onclick = togglePhysics;
+document.getElementById("toggleAddEdge").onclick = addEdge;
+document.getElementById("QuantumRouting").onclick = findQuantumPath;
+
+function highlightPath(ids) {
+	// reset edge colors to blue
+	edges.forEach(item => edges.update({id: item.id, color: "blue"}));
+	
+	
+	// highlight selected ids
+	ids.forEach(thisId => edges.update({id:thisId, color: "red"}));
+}
+
+function findQuantumPath() {
+	
+	// put data in proper format (see jupyter notebook)
+	// retrieve all items having a property group with value 2
+	var TestVsO = edges.getIds({
+	  filter: function (item) {
+		return (item.from == 0);
+	  }
+	});
+	var TestVsI = edges.getIds({
+	  filter: function (item) {
+		return (item.to == 0);
+	  }
+	});
+	var TestVtI = edges.getIds({
+	  filter: function (item) {
+		return (item.to == 1);
+	  }
+	});
+	var TestVtO = edges.getIds({
+	  filter: function (item) {
+		return (item.from == 1);
+	  }
+	});
+	var TestC = [];
+	edges.get({
+		fields: ['label']
+	}).forEach(label => TestC.push(label["label"]));
+	var TestP = 100;
+	var TestN = edges.getIds().length;
+	
+	// incoming and outgoing edges for central vertices/nodes
+	var TestVI = [];
+	var TestVO = [];
+	nodes.forEach(function(n){
+		if (n.id >= 2) {
+			TestVI.push(edges.getIds({
+				filter: function (item) {
+					return (item.to == n.id);
+				}
+			}));
+			TestVO.push(edges.getIds({
+				filter: function (item) {
+					return (item.from == n.id);
+				}
+			}));
+		}
+	});
+	
+	// give data to python file
+	// and hightlight returned edge ids
+	$.ajax({
+		url: "hello.py",
+		type: "post",
+		data: JSON.stringify({
+			// number of edges
+			N: TestN,
+			// indices of incoming edges at start vertex
+			VsI: TestVsI,
+			// indices of outgoing edges at start vertex
+			VsO: TestVsO,
+			// indices of incoming edges at target vertex
+			VtI: TestVtI,
+			// indices of outgoing edges at target vertex
+			VtO: TestVtO,
+			// indices of incoming edges at central vertices
+			VI: TestVI,
+			// indices of outgoing edges at central vertices
+			VO: TestVO,
+			// edge costs
+			C: TestC,
+			// penalty
+			P: TestP
+			}),
+		dataType: "json",
+		success: function(response) {
+			highlightPath(response.ids);
+		}
+	});
+		
+	//ids = [1,2];
+	//highlightPath(ids);
+	//edges.forEach(function(edge){alert(edge.id);})
+	//edges.get(1).color = "red";
+	//edges.update({id:1, color: "red"});
+	//alert(nodes.get(1).id)
+	/*edges.update({id: 5,
+		from: 0,
+		to: 1,
+		arrows: "to",
+		label: "hello new"});
+	nodes.update({id: 4, label: "new node"});*/
+	
+};
+
+function storePositions() {
+    network.storePositions();
+}
+
+var highestNodeID = 2;
+var highestEdgeID = 2;
+
+var inAddNodeMode = false;
+
+function addNode() {
+    if (inAddNodeMode) {
+        network.disableEditMode();
+        inAddNodeMode = false;
+    } else {
+        network.addNodeMode();
+        inAddNodeMode = true;
+    }
+}
+
+function visDelete() {
+    network.deleteSelected();
+}
+
+function togglePhysics() {
+    isPhysicsEnabled = !isPhysicsEnabled;
+    network.setOptions({
+        physics: isPhysicsEnabled
+    });
+}
+var isPhysicsEnabled = true;
+
+function togglePin() {
+    network.storePositions();
+    // update node.fixed
+}
+
+function addEdge()
+{
+	network.addEdgeMode();
+}
+
+// create an array with nodes
+var nodes = new vis.DataSet([{
+	// start node
+    id: 0,
+    label: 'Start'
+}, {
+	// target node
+    id: 1,
+    label: 'Ziel'
+}, {
+    id: 2,
+    label: '2'
+}]);
+
+// create an array with edges
+var edges = new vis.DataSet([{
+	id: 0,
+    from: 0,
+    to: 1,
+	arrows: "to",
+	label: "1"
+}, {
+    id: 1,
+    from: 0,
+    to: 2,
+	arrows:"to",
+	label: "2"
+}, {
+    id: 2,
+    from: 2,
+    to: 1,
+	arrows:"to",
+	label: "2"
+}]);
+
+// create a network
+var container = document.getElementById('mynetwork');
+var data = {
+    nodes: nodes,
+    edges: edges
+};
+var options = {
+    manipulation: {
+        enabled: false,
+        initiallyActive: false,
+        addNode: onAddNode,
+        addEdge: onAddEdge,
+        //editNode: onEditNode,
+        //editEdge: true,
+        deleteNode: onDelete,
+        // this is false, but the manipulation api can still delete edges
+        deleteEdge: false
+    }
+};
+
+function onAddNode(nodeToBeAdded, callback) {
+    
+	highestNodeID += 1;
+	nodeToBeAdded.id = highestNodeID;
+	nodeToBeAdded.label = highestNodeID.toString();
+    inAddNodeMode = false;
+    callback(nodeToBeAdded);
+}
+
+function onAddEdge(edgeToBeAdded, callback) {
+	
+	highestEdgeID += 1;
+	edgeToBeAdded.id = highestEdgeID;
+	edgeToBeAdded.label = document.getElementById("edgeCosts").value;
+	edgeToBeAdded.arrows="to";
+	if (edgeToBeAdded.from == edgeToBeAdded.to) {
+		var r = confirm("Do you want to connect the node to itself?");
+		if (r === true) {	
+			callback(edgeToBeAdded);
+		}
+	}
+	else {
+		callback(edgeToBeAdded);
+	}
+	// after each adding you will be back to addEdge mode
+	network.addEdgeMode();
+}
+
+function onDelete(toBeDeletedData, callback) {
+    console.log('deleting data', toBeDeletedData);
+    // toBeDeletedData is object with nodes: [] and edges: []
+
+    callback(toBeDeletedData);
+}
+
+
+var network = new vis.Network(container, data, options);
+
+</script>
+</body>
+</html>
